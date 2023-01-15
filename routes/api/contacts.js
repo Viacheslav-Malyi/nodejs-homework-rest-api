@@ -1,6 +1,9 @@
 const express = require("express");
 const { tryCatchWrapper } = require("../../helpers/index");
-const { addContactShema } = require("../../shemas/contacts");
+const {
+  addContactShema,
+  updateContactShema,
+} = require("../../shemas/contacts");
 const { validateBody } = require("../../middlewares/index");
 
 const router = express.Router();
@@ -11,6 +14,7 @@ const {
   addNewContact,
   deleteContact,
   updteContact,
+  updateStatusContact,
 } = require("../../controller/contacts-controller");
 
 router.get("/", tryCatchWrapper(getContact));
@@ -23,8 +27,14 @@ router.delete("/:contactId", tryCatchWrapper(deleteContact));
 
 router.put(
   "/:contactId",
-  validateBody(addContactShema),
+  validateBody(updateContactShema),
   tryCatchWrapper(updteContact)
+);
+
+router.patch(
+  "/:contactId/favorite",
+  validateBody(updateContactShema),
+  tryCatchWrapper(updateStatusContact)
 );
 
 module.exports = router;
