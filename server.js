@@ -7,15 +7,17 @@ mongoose.set("strictQuery", false);
 
 const { HOST_URI } = process.env;
 
-mongoose
-  .connect(HOST_URI)
-  .then(() => {
+async function main() {
+  try {
+    await mongoose.connect(HOST_URI);
+    console.log("Database connection successful");
+
     app.listen(3000, () => {
       console.log("Server running. Use our API on port: 3000");
     });
-    console.log("Database connection successful");
-  })
-  .catch((err) => {
-    console.log(err.message);
+  } catch (error) {
+    console.error(error.message);
     process.exit(1);
-  });
+  }
+}
+main();
