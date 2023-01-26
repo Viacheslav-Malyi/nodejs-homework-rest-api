@@ -34,7 +34,7 @@ async function auth(req, res, next) {
       error.name === "TokenExpiredError" ||
       error.name === "JsonWebTokenError"
     ) {
-      return next(Unauthorized("jwt token is not valid"));
+      return next(Unauthorized("jwt token is not valid!"));
     }
     throw error;
   }
