@@ -1,12 +1,13 @@
 const express = require("express");
-const { HttpError } = require("../helpers/index");
+const { NotFound } = require("http-errors");
 const router = express.Router();
 
-const httpError = new HttpError();
 const { Contact } = require("../models/contact");
 
 async function getContact(req, res, next) {
-  const contacts = await Contact.find({});
+  const { limit, page } = req.query;
+  const skip = (page - 1) * limit;
+  const contacts = await Contact.find({}).skip(skip).limit(limit);
   res.status(200).json(contacts);
 }
 
@@ -14,7 +15,7 @@ async function getContactId(req, res, next) {
   const { contactId } = req.params;
   const contact = await Contact.findById(contactId);
   if (!contact) {
-    return next(httpError.getError(404, "Not found"));
+    return next(NotFound("Not found"));
   }
   return res.status(200).json(contact);
 }
@@ -32,11 +33,12 @@ async function addNewContact(req, res, next) {
 
 async function deleteContact(req, res, next) {
   const { contactId } = req.params;
-  const contact = await Contact.findById(contactId);
+  const contact = await Contact.findByIdAndRemove(contactId);
   if (!contact) {
-    return next(httpError.getError(404, "Not found"));
+    return next(
+      NotFound(`failure, no contacts with id ${contactId} where found!`)
+    );
   }
-  await Contact.findByIdAndRemove(contactId);
   return res.status(200).json({ message: "contact deleted", contact });
 }
 
