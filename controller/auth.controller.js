@@ -1,5 +1,9 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const fs = require("fs/promises");
+const gravatar = require("gravatar");
+const jimp = require("jimp");
 const { Conflict, Unauthorized } = require("http-errors");
 const { User } = require("../models/user");
 
@@ -8,18 +12,27 @@ const { JWT_SECRET } = process.env;
 async function register(req, res, next) {
   const { email, password } = req.body;
 
-  const sult = await bcrypt.genSalt();
-  const hashedPassword = await bcrypt.hash(password, sult);
+  const avatarURL = gravatar.url(
+    email,
+    {
+      s: "250",
+      d: "retro",
+    },
+    true
+  );
+  console.log("AVATAR", avatarURL);
   try {
     const savedUser = await User.create({
       email,
-      password: hashedPassword,
+      password,
+      avatarURL,
     });
 
     res.status(201).json({
       data: {
         user: {
           email,
+          avatarURL,
           id: savedUser._id,
         },
       },
@@ -34,7 +47,6 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   const { email, password } = req.body;
-  console.log("=++++++++++++++++++==", req);
 
   const sortedUser = await User.findOne({
     email,
@@ -83,9 +95,38 @@ async function currentUser(req, res) {
   });
 }
 
+async function uploadImage(req, res, next) {
+  const { filename } = req.file;
+  const tmpPath = path.resolve(__dirname, "../tmp", filename);
+
+  const image = await jimp.read(tmpPath);
+  await image.resize(250, 250);
+  await image.writeAsync(tmpPath);
+
+  const publicPath = path.resolve(__dirname, "../public/avatars", filename);
+
+  try {
+    await fs.rename(tmpPath, publicPath);
+
+    const { _id } = req.user;
+    const result = await User.findByIdAndUpdate(
+      _id,
+      { avatarURL: `/public/avatars/${filename}` },
+      { new: true }
+    );
+    res.json({
+      avatar: result.avatarURL,
+    });
+  } catch (error) {
+    await fs.unlink(tmpPath);
+    throw Unauthorized("Not authorized");
+  }
+}
+
 module.exports = {
   register,
   login,
   logout,
   currentUser,
+  uploadImage,
 };
