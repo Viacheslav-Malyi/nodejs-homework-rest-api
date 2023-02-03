@@ -1,5 +1,7 @@
 const { Unauthorized, BadRequest } = require("http-errors");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
 const { User } = require("./../models/user");
 
 function validateBody(shema) {
@@ -40,7 +42,21 @@ async function auth(req, res, next) {
   }
 }
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.resolve(__dirname, "../tmp"));
+  },
+  filename: function (req, file, cb) {
+    cb(null, Math.random() + file.originalname);
+  },
+});
+
+const upload = multer({
+  storage,
+});
+
 module.exports = {
   validateBody,
   auth,
+  upload,
 };
