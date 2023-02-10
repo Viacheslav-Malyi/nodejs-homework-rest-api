@@ -6,9 +6,11 @@ const {
   logout,
   currentUser,
   uploadImage,
+  verifyEmail,
+  secondVerifyEmail,
 } = require("../../controller/auth.controller");
 const { validateBody, auth, upload } = require("../../middlewares/index");
-const { authShema } = require("../../shemas/contacts");
+const { authShema, secondVerificationShema } = require("../../shemas/contacts");
 
 const authRouter = express.Router();
 
@@ -21,6 +23,12 @@ authRouter.patch(
   auth,
   upload.single("image"),
   tryCatchWrapper(uploadImage)
+);
+authRouter.get("/verify/:verificationToken", tryCatchWrapper(verifyEmail));
+authRouter.post(
+  "/verify",
+  validateBody(secondVerificationShema),
+  tryCatchWrapper(secondVerifyEmail)
 );
 
 module.exports = {
