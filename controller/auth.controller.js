@@ -4,7 +4,9 @@ const path = require("path");
 const fs = require("fs/promises");
 const gravatar = require("gravatar");
 const jimp = require("jimp");
-const { Conflict, Unauthorized } = require("http-errors");
+const { v4 } = require("uuid");
+const { sendMail } = require("../helpers/index");
+const { Conflict, Unauthorized, BadRequest } = require("http-errors");
 const { User } = require("../models/user");
 
 const { JWT_SECRET } = process.env;
@@ -21,11 +23,19 @@ async function register(req, res, next) {
     true
   );
   console.log("AVATAR", avatarURL);
+  const verificationToken = v4();
   try {
     const savedUser = await User.create({
       email,
       password,
       avatarURL,
+      verificationToken,
+      verify: false,
+    });
+
+    await sendMail({
+      subject: "Please confirm your email",
+      html: `<b>To verify your registration tap at this <a href="http://localhost:3000/api/users/verify/${verificationToken}">link</a></b>`,
     });
 
     res.status(201).json({
@@ -54,6 +64,10 @@ async function login(req, res, next) {
 
   if (!sortedUser) {
     throw Unauthorized("Email or password is wrong");
+  }
+
+  if (!sortedUser.verify) {
+    throw Unauthorized("Email is not verify");
   }
 
   const isPasswordValid = await bcrypt.compare(password, sortedUser.password);
@@ -123,10 +137,50 @@ async function uploadImage(req, res, next) {
   }
 }
 
+async function verifyEmail(req, res, next) {
+  const { verificationToken } = req.params;
+  const user = await User.findOne({
+    verificationToken,
+  });
+  if (!user) {
+    throw BadRequest("Verify token is not valid");
+  }
+  await User.findByIdAndUpdate(user._id, {
+    verify: true,
+    verificationToken: null,
+  });
+
+  return res.json({
+    message: "Succes",
+  });
+}
+
+async function secondVerifyEmail(req, res, next) {
+  const { email } = req.body;
+  const result = await User.findOne({ email: email });
+  if (!result) {
+    throw BadRequest(`No user with verificationToken ${email} where found`);
+  }
+  const { verificationToken, verify } = result;
+  if (verify) {
+    throw BadRequest(`Verification has already been passed`);
+  }
+  await sendMail({
+    subject: "Please confirm your email",
+    html: `<b>To verify your registration tap at this <a href="http://localhost:3000/api/users/verify/${verificationToken}">link</a></b>`,
+  });
+
+  return res.status(200).json({
+    status: `Verification email sent`,
+  });
+}
+
 module.exports = {
   register,
   login,
   logout,
   currentUser,
   uploadImage,
+  verifyEmail,
+  secondVerifyEmail,
 };
